@@ -14,6 +14,11 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+#include "UI/FS_PauseMenuWidget.h"
+#include "Game/FS_GameInstance.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+
 AFS_Character::AFS_Character()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -113,6 +118,12 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(IA_Ability1, ETriggerEvent::Completed, this, &AFS_Character::Ability1_Released);
 			EIC->BindAction(IA_Ability1, ETriggerEvent::Canceled, this, &AFS_Character::Ability1_Released);
 		}
+
+		// Pause
+		if (IA_Pause)
+		{
+			EIC->BindAction(IA_Pause, ETriggerEvent::Started, this, &AFS_Character::TogglePauseMenu);
+		}
 	}
 	else
 	{
@@ -164,4 +175,97 @@ void AFS_Character::Ability1_Pressed()
 void AFS_Character::Ability1_Released()
 {
 	if (ASC) ASC->InputReleased(EFSAbilityInputID::Ability1);
+}
+
+void AFS_Character::TogglePauseMenu()
+{
+	const bool bIsPaused = GetWorld()->IsPaused();
+	if (!bIsPaused) ShowPauseMenu();
+	else            HidePauseMenu();
+}
+
+void AFS_Character::ShowPauseMenu()
+{
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!PC || !PauseMenuClass) return;
+
+	// Create once
+	if (!PauseMenuInstance)
+	{
+		PauseMenuInstance = CreateWidget<UFS_PauseMenuWidget>(PC, PauseMenuClass);
+		if (!PauseMenuInstance) return;
+
+		// Bind widget signals
+		PauseMenuInstance->OnResumeRequested.AddDynamic(this, &AFS_Character::HandlePauseResume);
+		PauseMenuInstance->OnQuitToMainRequested.AddDynamic(this, &AFS_Character::HandlePauseQuitToMain);
+		PauseMenuInstance->OnQuitToDesktopRequested.AddDynamic(this, &AFS_Character::HandlePauseQuitToDesktop);
+		// SettingsRequested currently does nothing
+	}
+
+	// Add to viewport, focus it, switch to UI input, show cursor
+	PauseMenuInstance->AddToViewport(100);
+
+	FInputModeUIOnly UI;
+	UI.SetWidgetToFocus(PauseMenuInstance->TakeWidget());
+	UI.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PC->SetInputMode(UI);
+	PC->SetShowMouseCursor(true);
+
+	// Pause
+	PC->SetPause(true);
+	// Optional: also block pawn input explicitly
+	PC->SetIgnoreLookInput(true);
+	PC->SetIgnoreMoveInput(true);
+}
+
+void AFS_Character::HidePauseMenu()
+{
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!PC) return;
+
+	// Unpause
+	PC->SetPause(false);
+
+	// Remove widget
+	if (PauseMenuInstance && PauseMenuInstance->IsInViewport())
+	{
+		PauseMenuInstance->RemoveFromParent();
+	}
+
+	// Restore input to game
+	FInputModeGameOnly GameOnly;
+	PC->SetInputMode(GameOnly);
+	PC->SetShowMouseCursor(false);
+	PC->SetIgnoreLookInput(false);
+	PC->SetIgnoreMoveInput(false);
+}
+
+void AFS_Character::HandlePauseResume()
+{
+	HidePauseMenu();
+}
+
+void AFS_Character::HandlePauseQuitToMain()
+{
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!PC) return;
+
+	// Clear selections so player can pick again
+	if (UFS_GameInstance* GI = GetWorld()->GetGameInstance<UFS_GameInstance>())
+	{
+		GI->ClearPending();
+	}
+
+	// Cleanly unpause before travel
+	HidePauseMenu();
+
+	// Load your main menu map (replace with your exact map name)
+	UGameplayStatics::OpenLevel(this, FName("MainMenu"));
+}
+
+void AFS_Character::HandlePauseQuitToDesktop()
+{
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	HidePauseMenu(); // just to be tidy
+	UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, /*bIgnorePlatformRestrictions=*/false);
 }

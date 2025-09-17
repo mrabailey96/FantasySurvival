@@ -10,6 +10,7 @@
 
 class AFS_PlayerState;
 class UFS_AbilitySystemComponent;
+class UFS_PauseMenuWidget;
 
 class UInputMappingContext;
 class UInputAction;
@@ -60,6 +61,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Ability1;  // Digital trigger for your first ability
 
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Pause;
+
+	// Pause menu class + live instance
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UFS_PauseMenuWidget> PauseMenuClass;
+
+	UPROPERTY()
+	TObjectPtr<UFS_PauseMenuWidget> PauseMenuInstance;
+
 	/** Cached ASC (owned by PlayerState) */
 	UPROPERTY()
 	TObjectPtr<UFS_AbilitySystemComponent> ASC;
@@ -74,4 +85,16 @@ protected:
 	/** Movement/look handlers */
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+
+	// Toggle pause
+	void TogglePauseMenu();
+
+	// Handlers the widget will call back into
+	UFUNCTION() void HandlePauseResume();
+	UFUNCTION() void HandlePauseQuitToMain();
+	UFUNCTION() void HandlePauseQuitToDesktop();
+
+	// Helpers
+	void ShowPauseMenu();
+	void HidePauseMenu();
 };
