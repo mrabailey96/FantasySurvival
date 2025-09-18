@@ -9,35 +9,37 @@
 
 class UAnimMontage;
 class UAbilityTask_PlayMontageAndWait;
-
+class UFS_CharacterAnimInstance;
 
 UCLASS()
 class FANTASYSURVIVAL_API UFS_GA_PrimaryAttack : public UGameplayAbility
 {
-	GENERATED_BODY()
-	
+    GENERATED_BODY()
+
 public:
     UFS_GA_PrimaryAttack();
 
+    // Optional: cooldown / damage effect you already use
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Effects")
     TSubclassOf<class UGameplayEffect> CooldownEffectClass;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Effects")
     TSubclassOf<class UGameplayEffect> DamageEffectClass;
 
-    // Per-class montages (assign in asset or via BP child if you prefer)
+    // Fallback montages (only used if AnimBP function isn't available)
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Animation")
-    TObjectPtr<UAnimMontage> WarriorMontage;
+    TObjectPtr<UAnimMontage> WarriorMontage = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Animation")
-    TObjectPtr<UAnimMontage> MageMontage;
+    TObjectPtr<UAnimMontage> MageMontage = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Animation")
-    TObjectPtr<UAnimMontage> AssassinMontage;
+    TObjectPtr<UAnimMontage> AssassinMontage = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Animation")
-    TObjectPtr<UAnimMontage> RangerMontage;
+    TObjectPtr<UAnimMontage> RangerMontage = nullptr;
 
+    // Hit window settings
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Hit")
     FName TraceSocketName = TEXT("WeaponTip");
 
@@ -47,6 +49,7 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Hit")
     float TraceRadius = 25.f;
 
+    // GAS overrides
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo,
@@ -58,12 +61,17 @@ public:
         bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
+    // Gameplay Event callbacks
     UFUNCTION() void OnHitWindowEvent(FGameplayEventData Payload);
+    UFUNCTION() void OnAttackEndEvent(FGameplayEventData Payload);
     UFUNCTION() void OnMontageCompleted();
 
 private:
+    // Only used by the fallback AbilityTask path
     UPROPERTY() UAbilityTask_PlayMontageAndWait* MontageTask = nullptr;
+
     bool bConsumedHitWindow = false;
 
+    // Fallback: choose per-class montage if the AnimBP function isn't found
     UAnimMontage* ResolveClassMontage(const FGameplayAbilityActorInfo* ActorInfo) const;
 };
