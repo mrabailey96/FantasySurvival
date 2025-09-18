@@ -59,6 +59,9 @@ protected:
 	TObjectPtr<UInputAction> IA_Jump;      // Bool (Pressed/Released)
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_PrimaryAttack;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Ability1;  // Digital trigger for your first ability
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -77,6 +80,9 @@ protected:
 
 	/** Adds the IMC to the local player subsystem */
 	void AddInputContext(class APlayerController* PC);
+
+	void PrimaryAttack_Pressed();
+	void PrimaryAttack_Released();
 
 	/** Ability input handlers */
 	void Ability1_Pressed();

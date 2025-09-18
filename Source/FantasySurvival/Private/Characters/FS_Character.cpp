@@ -126,6 +126,13 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(IA_Jump, ETriggerEvent::Canceled, this, &ACharacter::StopJumping);
 		}
 
+		if (IA_PrimaryAttack)
+		{
+			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Started, this, &AFS_Character::PrimaryAttack_Pressed);
+			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Completed, this, &AFS_Character::PrimaryAttack_Released);
+			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Canceled, this, &AFS_Character::PrimaryAttack_Released);
+		}
+
 		// Ability 1
 		if (IA_Ability1)
 		{
@@ -180,6 +187,16 @@ void AFS_Character::Look(const FInputActionValue& Value)
 	const FVector2D Axis = Value.Get<FVector2D>(); // X=Yaw, Y=Pitch
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
+}
+
+void AFS_Character::PrimaryAttack_Pressed()
+{
+	if (ASC) ASC->InputPressed(EFSAbilityInputID::PrimaryAttack);
+}
+
+void AFS_Character::PrimaryAttack_Released()
+{
+	if (ASC) ASC->InputReleased(EFSAbilityInputID::PrimaryAttack);
 }
 
 void AFS_Character::Ability1_Pressed()
