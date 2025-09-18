@@ -57,13 +57,24 @@ void AFS_Character::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	// Hook ASC (owned by PlayerState) to this pawn
 	if (AFS_PlayerState* PS = GetPlayerState<AFS_PlayerState>())
 	{
 		ASC = Cast<UFS_AbilitySystemComponent>(PS->GetAbilitySystemComponent());
 		if (ASC)
 		{
 			ASC->InitAbilityActorInfo(PS, this);
+
+			if (HasAuthority())
+			{
+				// NEW: copy the class picked in the main menu
+				if (UFS_GameInstance* GI = GetWorld()->GetGameInstance<UFS_GameInstance>())
+				{
+					PS->SelectedClass = GI->GetPendingClass();
+				}
+
+				// Apply the correct per-class init now
+				PS->ApplyClassInitialization();
+			}
 		}
 	}
 }
@@ -77,7 +88,11 @@ void AFS_Character::OnRep_PlayerState()
 		ASC = Cast<UFS_AbilitySystemComponent>(PS->GetAbilitySystemComponent());
 		if (ASC)
 		{
+			// Re-establish actor info on clients after PlayerState replicates
 			ASC->InitAbilityActorInfo(PS, this);
+
+			// DO NOT apply init effects here; server already did it in PossessedBy
+			// (Clients will see replicated attributes after the GE is applied server-side)
 		}
 	}
 }

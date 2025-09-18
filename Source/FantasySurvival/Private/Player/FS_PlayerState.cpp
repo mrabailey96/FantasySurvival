@@ -4,112 +4,135 @@
 #include "Player/FS_PlayerState.h"
 #include "AbilitySystem/FS_AbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/FS_AttributeSet_Stats.h"
-
-#include "AbilitySystem/Abilities/FS_GA_Cleave.h"
-#include "AbilitySystem/Abilities/FS_GA_ArcaneBolt.h"
-#include "AbilitySystem/Abilities/FS_GA_CombatRoll.h"
-#include "AbilitySystem/Abilities/FS_GA_ShadowStep.h"
-
-#include "Game/FS_GameInstance.h"
-#include "Net/UnrealNetwork.h"
+#include "AbilitySystem/FS_ClassConfig.h"
 #include "AbilitySystemComponent.h"
-#include "Abilities/GameplayAbility.h"
 #include "GameplayEffect.h"
+#include "Abilities/GameplayAbility.h"
+#include "Net/UnrealNetwork.h"
 
 AFS_PlayerState::AFS_PlayerState()
 {
-	// Create and configure ASC + AttributeSet on the PlayerState
-	ASC = CreateDefaultSubobject<UFS_AbilitySystemComponent>(TEXT("ASC"));
-	ASC->SetIsReplicated(true);
-	ASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+    SetNetUpdateFrequency(60.f);
 
-	Stats = CreateDefaultSubobject<UFS_AttributeSet_Stats>(TEXT("Stats"));
+    AbilitySystemComponent = CreateDefaultSubobject<UFS_AbilitySystemComponent>(TEXT("ASC"));
+    AttributeSetStats = CreateDefaultSubobject<UFS_AttributeSet_Stats>(TEXT("AttributeSet_Stats"));
 
-	// Use function (not direct property) per 5.6 deprecation note
-	SetNetUpdateFrequency(100.f);
-
-	// Sensible defaults for ability classes; override in BP if you want the BP versions
-	WarriorAbilityClass = UFS_GA_Cleave::StaticClass();
-	MageAbilityClass = UFS_GA_ArcaneBolt::StaticClass();
-	RangerAbilityClass = UFS_GA_CombatRoll::StaticClass();
-	AssassinAbilityClass = UFS_GA_ShadowStep::StaticClass();
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->SetIsReplicated(true);
+        AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+    }
 }
 
 UAbilitySystemComponent* AFS_PlayerState::GetAbilitySystemComponent() const
 {
-	return ASC;
+    return AbilitySystemComponent;
 }
 
-void AFS_PlayerState::BeginPlay()
+void AFS_PlayerState::InitializeAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor)
 {
-	Super::BeginPlay();
-
-	if (HasAuthority())
-	{
-		// Pull the class chosen in the menu (GameInstance) if available
-		if (UFS_GameInstance* GI = GetWorld()->GetGameInstance<UFS_GameInstance>())
-		{
-			PlayerClass = GI->PendingClass;
-		}
-
-		// Apply initial stats once, if provided (lets you tune in BP)
-		if (InitStatsEffect && ASC)
-		{
-			ASC->ApplyGameplayEffectToSelf(InitStatsEffect.GetDefaultObject(), /*Level*/1.0f, ASC->MakeEffectContext());
-		}
-
-		GrantStartupAbilities();
-	}
-
-	DebugPrintClass();
+    if (!AbilitySystemComponent) return;
+    AbilitySystemComponent->InitAbilityActorInfo(InOwnerActor, InAvatarActor);
 }
 
-void AFS_PlayerState::GrantStartupAbilities()
+void AFS_PlayerState::ApplyClassInitialization()
 {
-	if (!ASC || !HasAuthority())
-	{
-		return;
-	}
+    if (!AbilitySystemComponent)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("FS_PlayerState: ASC is null; cannot apply class init."));
+        return;
+    }
+    if (bInitApplied && bAbilitiesGranted)
+    {
+        return; // everything already applied
+    }
+    if (!ClassConfig)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("FS_PlayerState: ClassConfig is null; assign DA_ClassConfig in defaults."));
+        return;
+    }
 
-	TSubclassOf<UGameplayAbility> AbilityToGrant = nullptr;
+    // --- Instant Init (stats) ---
+    if (!bInitApplied)
+    {
+        if (const TSubclassOf<UGameplayEffect>* FoundInit = ClassConfig->ClassInitEffects.Find(SelectedClass))
+        {
+            if (FoundInit && *FoundInit)
+            {
+                FGameplayEffectContextHandle Ctx = AbilitySystemComponent->MakeEffectContext();
+                Ctx.AddSourceObject(this);
 
-	switch (PlayerClass)
-	{
-	case EFSPlayerClass::Warrior:   AbilityToGrant = WarriorAbilityClass;  break;
-	case EFSPlayerClass::Mage:      AbilityToGrant = MageAbilityClass;     break;
-	case EFSPlayerClass::Ranger:    AbilityToGrant = RangerAbilityClass;   break;
-	case EFSPlayerClass::Assassin:  AbilityToGrant = AssassinAbilityClass; break;
-	default: break;
-	}
+                FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(*FoundInit, 1.f, Ctx);
+                if (Spec.IsValid())
+                {
+                    AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+                }
+            }
+        }
 
-	if (AbilityToGrant)
-	{
-		// InputID = Ability1 (so your Enhanced Input press triggers it)
-		const int32 InputID = static_cast<int32>(EFSAbilityInputID::Ability1);
-		ASC->GiveAbility(FGameplayAbilitySpec(AbilityToGrant, /*Level*/1, /*InputID*/InputID, this));
-		// ActorInfo is initialized by your Character (AFS_Character) in PossessedBy/OnRep_PlayerState.
-	}
+        // Optional passive (infinite)
+        if (const TSubclassOf<UGameplayEffect>* FoundPassive = ClassConfig->ClassPassiveEffects.Find(SelectedClass))
+        {
+            if (FoundPassive && *FoundPassive)
+            {
+                FGameplayEffectContextHandle Ctx = AbilitySystemComponent->MakeEffectContext();
+                Ctx.AddSourceObject(this);
+
+                FGameplayEffectSpecHandle Spec = AbilitySystemComponent->MakeOutgoingSpec(*FoundPassive, 1.f, Ctx);
+                if (Spec.IsValid())
+                {
+                    AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+                }
+            }
+        }
+
+        // Snap current pools to max (start full)
+        if (AttributeSetStats)
+        {
+            const float NewMaxHealth = AttributeSetStats->GetMaxHealth();
+            const float NewMaxMana = AttributeSetStats->GetMaxMana();
+            const float NewMaxStamina = AttributeSetStats->GetMaxStamina();
+
+            AbilitySystemComponent->SetNumericAttributeBase(
+                UFS_AttributeSet_Stats::GetHealthAttribute(), NewMaxHealth);
+            AbilitySystemComponent->SetNumericAttributeBase(
+                UFS_AttributeSet_Stats::GetManaAttribute(), NewMaxMana);
+            AbilitySystemComponent->SetNumericAttributeBase(
+                UFS_AttributeSet_Stats::GetStaminaAttribute(), NewMaxStamina);
+        }
+
+        bInitApplied = true;
+    }
+
+    // --- Grant default abilities for this class (server-only) ---
+    if (HasAuthority() && !bAbilitiesGranted && ClassConfig && AbilitySystemComponent)
+    {
+        if (const FFS_ClassGrants* Grants = ClassConfig->ClassDefaultGrants.Find(SelectedClass))
+        {
+            for (const FFS_AbilityGrant& Grant : Grants->Abilities)
+            {
+                if (!Grant.Ability) continue;
+
+                const int32 Level = FMath::Max(1, Grant.Level);
+                // If designer left InputID at 0, default to Ability1
+                const int32 InputID = (Grant.InputID != 0) ? Grant.InputID
+                    : static_cast<int32>(EFSAbilityInputID::Ability1);
+
+                FGameplayAbilitySpec Spec(Grant.Ability, Level, InputID, this);
+                AbilitySystemComponent->GiveAbility(Spec);
+            }
+            bAbilitiesGranted = true;
+        }
+    }
+}
+
+void AFS_PlayerState::OnRep_SelectedClass()
+{
+    // Client UI hook if needed (don’t apply effects here).
 }
 
 void AFS_PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(AFS_PlayerState, PlayerClass);
-}
-
-void AFS_PlayerState::DebugPrintClass() const
-{
-#if !UE_BUILD_SHIPPING
-	static auto ToString = [](EFSPlayerClass C)
-		{
-			return StaticEnum<EFSPlayerClass>()->GetNameStringByValue(static_cast<int64>(C));
-		};
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1, 5.f, FColor::Green,
-			FString::Printf(TEXT("FS_PlayerState :: PlayerClass = %s"), *ToString(PlayerClass)));
-	}
-#endif
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(AFS_PlayerState, SelectedClass);
 }

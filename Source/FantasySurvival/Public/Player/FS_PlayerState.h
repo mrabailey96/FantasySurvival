@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -8,14 +8,19 @@
 #include "Characters/FS_PlayerClass.h"
 #include "FS_PlayerState.generated.h"
 
+class UAbilitySystemComponent;
 class UFS_AbilitySystemComponent;
 class UFS_AttributeSet_Stats;
-
-class UGameplayAbility;
-class UGameplayEffect;
+class UFS_ClassConfig;
 
 /**
- * PlayerState owns ASC + AttributeSet so abilities/attributes persist across pawn swaps.
+ * Owns the ASC + AttributeSets for the player and applies the
+ * class-specific "Init" GameplayEffect once the ASC is ready.
+ *
+ * Note:
+ *  - Your Character (or Pawn) should call InitializeAbilityActorInfo(...)
+ *    after possession so the ASC has correct Owner/Avatar.
+ *  - Then call ApplyClassInitialization() once (e.g., in Character::BeginPlay).
  */
 UCLASS()
 class FANTASYSURVIVAL_API AFS_PlayerState : public APlayerState, public IAbilitySystemInterface
@@ -23,52 +28,48 @@ class FANTASYSURVIVAL_API AFS_PlayerState : public APlayerState, public IAbility
 	GENERATED_BODY()
 
 public:
-	AFS_PlayerState();
+    AFS_PlayerState();
 
-	// IAbilitySystemInterface
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+    /** IAbilitySystemInterface */
+    virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	UFUNCTION(BlueprintCallable, Category = "GAS")
-	UFS_AttributeSet_Stats* GetStats() const { return Stats; }
+    UFUNCTION(BlueprintPure, Category = "AbilitySystem")
+    UFS_AbilitySystemComponent* GetFSAbilitySystemComponent() const { return AbilitySystemComponent; }
 
-	/** The class chosen in the menu; replicated so UI/HUD can read it on clients */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "Class")
-	EFSPlayerClass PlayerClass = EFSPlayerClass::Warrior;
+    UFUNCTION(BlueprintPure, Category = "AbilitySystem")
+    UFS_AttributeSet_Stats* GetStatsSet() const { return AttributeSetStats; }
 
-	/** Optional: apply this once on BeginPlay to set Max/Current Health/Mana/Stamina, etc. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Init")
-	TSubclassOf<UGameplayEffect> InitStatsEffect;
+    /** Call once after ASC actor info is initialized */
+    UFUNCTION(BlueprintCallable, Category = "Class")
+    void ApplyClassInitialization();
 
-	/** Ability classes per player class (point these to your BP abilities in the PlayerState BP) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Abilities")
-	TSubclassOf<UGameplayAbility> WarriorAbilityClass;
+    /** Helper: Character calls this after possession */
+    UFUNCTION(BlueprintCallable, Category = "AbilitySystem")
+    void InitializeAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Abilities")
-	TSubclassOf<UGameplayAbility> MageAbilityClass;
+    /** Config mapping Class → effects/abilities (set in defaults/BP) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Class")
+    TObjectPtr<UFS_ClassConfig> ClassConfig;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Abilities")
-	TSubclassOf<UGameplayAbility> RangerAbilityClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Abilities")
-	TSubclassOf<UGameplayAbility> AssassinAbilityClass;
-
-	// AActor
-	virtual void BeginPlay() override;
-
-	// Replication
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    /** Chosen class (replicates so UI can update) */
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_SelectedClass, Category = "Class")
+    EFSPlayerClass SelectedClass = EFSPlayerClass::Warrior;
 
 protected:
-	/** GAS core */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
-	TObjectPtr<UFS_AbilitySystemComponent> ASC;
+    /** ASC + AttributeSets live on PlayerState for persistence */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem")
+    TObjectPtr<UFS_AbilitySystemComponent> AbilitySystemComponent;
 
-	UPROPERTY()
-	TObjectPtr<UFS_AttributeSet_Stats> Stats;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AbilitySystem")
+    TObjectPtr<UFS_AttributeSet_Stats> AttributeSetStats;
 
-	/** Grants the startup ability based on PlayerClass */
-	void GrantStartupAbilities();
+    /** Guards */
+    UPROPERTY(Transient) bool bInitApplied = false;
+    UPROPERTY(Transient) bool bAbilitiesGranted = false;
 
-	/** Debug helper: print class at start */
-	void DebugPrintClass() const;
+    /** RepNotify */
+    UFUNCTION() void OnRep_SelectedClass();
+
+    /** APlayerState */
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };
