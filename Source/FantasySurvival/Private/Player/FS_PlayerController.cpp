@@ -15,15 +15,17 @@ AFS_PlayerController::AFS_PlayerController()
 
 void AFS_PlayerController::BeginPlay()
 {
-	Super::BeginPlay();
-	EnsureHUD();
-	WireASC();
+    Super::BeginPlay();
+    EnsureHUD();
+    WireASC();
+    ApplyGameInputMode(); // <<< ensures game input & hides cursor
 }
 
 void AFS_PlayerController::OnPossess(APawn* InPawn)
 {
-	Super::OnPossess(InPawn);
-	WireASC();
+    Super::OnPossess(InPawn);
+    WireASC();
+    ApplyGameInputMode(); // <<< also on repossess (e.g., respawn)
 }
 
 void AFS_PlayerController::EnsureHUD()
@@ -49,17 +51,45 @@ void AFS_PlayerController::WireASC()
     {
         if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
         {
-            using FSA = UFS_AttributeSet_Stats; // your set
-
+            using FSA = UFS_AttributeSet_Stats;
             HUDInstance->InitializeForASC(
                 ASC,
-                FSA::GetHealthAttribute(),
-                FSA::GetMaxHealthAttribute(),
-                FSA::GetStaminaAttribute(),
-                FSA::GetMaxStaminaAttribute()
+                FSA::GetHealthAttribute(), FSA::GetMaxHealthAttribute(),
+                FSA::GetStaminaAttribute(), FSA::GetMaxStaminaAttribute(),
+                FSA::GetManaAttribute(), FSA::GetMaxManaAttribute()
             );
 
             HUDInstance->ActivateWidget(); // makes sure delegates are bound
         }
     }
+}
+
+
+void AFS_PlayerController::ApplyGameInputMode()
+{
+    FInputModeGameOnly Mode;
+    Mode.SetConsumeCaptureMouseDown(false);      // lets you click without losing capture
+    SetInputMode(Mode);
+
+    bShowMouseCursor = false;
+    bEnableClickEvents = false;
+    bEnableMouseOverEvents = false;
+
+    SetIgnoreLookInput(false);
+    SetIgnoreMoveInput(false);
+}
+
+void AFS_PlayerController::ApplyMenuInputMode(UUserWidget* FocusWidget /*= nullptr*/)
+{
+    FInputModeUIOnly Mode;
+    Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    Mode.SetWidgetToFocus(FocusWidget ? FocusWidget->TakeWidget() : TSharedPtr<SWidget>());
+    SetInputMode(Mode);
+
+    bShowMouseCursor = true;
+    bEnableClickEvents = true;
+    bEnableMouseOverEvents = true;
+
+    SetIgnoreLookInput(true);
+    SetIgnoreMoveInput(true);
 }

@@ -28,6 +28,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UFS_HUDWidget> HUDWidgetClass;
 
+	void ApplyGameInputMode();
+	void ApplyMenuInputMode(UUserWidget* FocusWidget = nullptr);
+
 private:
 	UPROPERTY()
 	TObjectPtr<UFS_HUDWidget> HUDInstance = nullptr;
