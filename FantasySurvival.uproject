@@ -11,8 +11,7 @@
 			"AdditionalDependencies": [
 				"GameplayAbilities",
 				"Engine",
-				"UMG",
-				"CommonUI"
+				"UMG"
 			]
 		}
 	],
@@ -30,10 +29,6 @@
 		},
 		{
 			"Name": "GameplayAbilities",
-			"Enabled": true
-		},
-		{
-			"Name": "CommonUI",
 			"Enabled": true
 		}
 	]
