@@ -25,7 +25,7 @@ public:
 	// Call once on create/activate with your pawn's ASC and attribute getters.
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void InitializeForASC(UAbilitySystemComponent* InASC, FGameplayAttribute InHealthAttr, FGameplayAttribute InMaxHealthAttr,
-		FGameplayAttribute InStaminaAttr, FGameplayAttribute InMaxStaminaAttr, FGameplayAttribute InManaAttr, FGameplayAttribute InMaxManaAttr);
+		FGameplayAttribute InStaminaAttr, FGameplayAttribute InMaxStaminaAttr);
 
 	// Optional Blueprint-callable setters if you want to drive purely from BP.
 	UFUNCTION(BlueprintCallable, Category = "HUD")
@@ -33,9 +33,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SetStamina(float Current, float Max);
-
-	UFUNCTION(BlueprintCallable, Category = "HUD")
-	void SetMana(float Current, float Max);
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -55,12 +52,6 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* StaminaText = nullptr;
 
-	UPROPERTY(meta = (BindWidgetOptional))
-	UProgressBar* ManaBar = nullptr;
-
-	UPROPERTY(meta = (BindWidgetOptional))
-	UTextBlock* ManaText = nullptr;
-
 private:
 	// Cached ASC + attributes
 	UPROPERTY()
@@ -70,15 +61,11 @@ private:
 	FGameplayAttribute MaxHealthAttr;
 	FGameplayAttribute StaminaAttr;
 	FGameplayAttribute MaxStaminaAttr;
-	FGameplayAttribute ManaAttr;
-	FGameplayAttribute MaxManaAttr;
 
 	FDelegateHandle HealthChangedHandle;
 	FDelegateHandle MaxHealthChangedHandle;
 	FDelegateHandle StaminaChangedHandle;
 	FDelegateHandle MaxStaminaChangedHandle;
-	FDelegateHandle ManaChangedHandle;
-	FDelegateHandle MaxManaChangedHandle;
 
 	void SubscribeAttributeDelegates();
 	void UnsubscribeAttributeDelegates();
@@ -91,7 +78,5 @@ private:
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
 	void OnStaminaChanged(const FOnAttributeChangeData& Data);
 	void OnMaxStaminaChanged(const FOnAttributeChangeData& Data);
-	void OnManaChanged(const FOnAttributeChangeData& Data);
-	void OnMaxManaChanged(const FOnAttributeChangeData& Data);
 
 };

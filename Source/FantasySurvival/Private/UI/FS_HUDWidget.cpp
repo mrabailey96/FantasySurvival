@@ -28,15 +28,13 @@ void UFS_HUDWidget::NativeOnDeactivated()
 }
 
 void UFS_HUDWidget::InitializeForASC(UAbilitySystemComponent* InASC, FGameplayAttribute InHealthAttr, FGameplayAttribute InMaxHealthAttr,
-	FGameplayAttribute InStaminaAttr, FGameplayAttribute InMaxStaminaAttr, FGameplayAttribute InManaAttr, FGameplayAttribute InMaxManaAttr)
+	FGameplayAttribute InStaminaAttr, FGameplayAttribute InMaxStaminaAttr)
 {
 	ASC = InASC;
 	HealthAttr = InHealthAttr;
 	MaxHealthAttr = InMaxHealthAttr;
 	StaminaAttr = InStaminaAttr;
 	MaxStaminaAttr = InMaxStaminaAttr;
-	ManaAttr = InManaAttr;
-	MaxManaAttr = InMaxManaAttr;
 
 	if (IsActivated())
 	{
@@ -70,16 +68,6 @@ void UFS_HUDWidget::SubscribeAttributeDelegates()
 		MaxStaminaChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(MaxStaminaAttr)
 			.AddUObject(this, &UFS_HUDWidget::OnMaxStaminaChanged);
 	}
-	if (ManaChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(ManaAttr).Remove(ManaChangedHandle);
-		ManaChangedHandle.Reset();
-	}
-	if (MaxManaChangedHandle.IsValid())
-	{
-		ASC->GetGameplayAttributeValueChangeDelegate(MaxManaAttr).Remove(MaxManaChangedHandle);
-		MaxManaChangedHandle.Reset();
-	}
 }
 
 void UFS_HUDWidget::UnsubscribeAttributeDelegates()
@@ -106,16 +94,6 @@ void UFS_HUDWidget::UnsubscribeAttributeDelegates()
 		ASC->GetGameplayAttributeValueChangeDelegate(MaxStaminaAttr).Remove(MaxStaminaChangedHandle);
 		MaxStaminaChangedHandle.Reset();
 	}
-	if (ManaAttr.IsValid())
-	{
-		ManaChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(ManaAttr)
-			.AddUObject(this, &UFS_HUDWidget::OnManaChanged);
-	}
-	if (MaxManaAttr.IsValid())
-	{
-		MaxManaChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(MaxManaAttr)
-			.AddUObject(this, &UFS_HUDWidget::OnMaxManaChanged);
-	}
 }
 
 void UFS_HUDWidget::RefreshBars()
@@ -126,20 +104,15 @@ void UFS_HUDWidget::RefreshBars()
 	const float MaxHealth = MaxHealthAttr.IsValid() ? ASC->GetNumericAttribute(MaxHealthAttr) : 1.f;
 	const float CurStamina = StaminaAttr.IsValid() ? ASC->GetNumericAttribute(StaminaAttr) : 0.f;
 	const float MaxStamina = MaxStaminaAttr.IsValid() ? ASC->GetNumericAttribute(MaxStaminaAttr) : 1.f;
-	const float CurMana = ManaAttr.IsValid() ? ASC->GetNumericAttribute(ManaAttr) : 0.f;
-	const float MaxMana = MaxManaAttr.IsValid() ? ASC->GetNumericAttribute(MaxManaAttr) : 1.f;
 
 	SetHealth(CurHealth, MaxHealth);
 	SetStamina(CurStamina, MaxStamina);
-	SetMana(CurMana, MaxMana);
 }
 
 void UFS_HUDWidget::OnHealthChanged(const FOnAttributeChangeData& Data) { RefreshBars(); }
 void UFS_HUDWidget::OnMaxHealthChanged(const FOnAttributeChangeData& Data) { RefreshBars(); }
 void UFS_HUDWidget::OnStaminaChanged(const FOnAttributeChangeData& Data) { RefreshBars(); }
 void UFS_HUDWidget::OnMaxStaminaChanged(const FOnAttributeChangeData& Data) { RefreshBars(); }
-void UFS_HUDWidget::OnManaChanged(const FOnAttributeChangeData&) { RefreshBars(); }
-void UFS_HUDWidget::OnMaxManaChanged(const FOnAttributeChangeData&) { RefreshBars(); }
 
 void UFS_HUDWidget::SetHealth(float Current, float Max)
 {
@@ -164,18 +137,5 @@ void UFS_HUDWidget::SetStamina(float Current, float Max)
 	if (StaminaText)
 	{
 		StaminaText->SetText(FText::AsNumber(FMath::Max(0, FMath::RoundToInt(Current))));
-	}
-}
-
-void UFS_HUDWidget::SetMana(float Current, float Max)
-{
-	if (ManaBar)
-	{
-		const float Denom = FMath::Max(Max, KINDA_SMALL_NUMBER);
-		ManaBar->SetPercent(FMath::Clamp(Current / Denom, 0.f, 1.f));
-	}
-	if (ManaText)
-	{
-		ManaText->SetText(FText::AsNumber(FMath::Max(0, FMath::RoundToInt(Current))));
 	}
 }
