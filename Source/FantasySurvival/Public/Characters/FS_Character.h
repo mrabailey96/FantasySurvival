@@ -62,6 +62,9 @@ protected:
 	TObjectPtr<UInputAction> IA_PrimaryAttack;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Block;  // Bool (Pressed/Released)
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Ability1;  // Digital trigger for your first ability
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -83,6 +86,9 @@ protected:
 
 	void PrimaryAttack_Pressed();
 	void PrimaryAttack_Released();
+
+	void Block_Pressed();
+	void Block_Released();
 
 	/** Ability input handlers */
 	void Ability1_Pressed();

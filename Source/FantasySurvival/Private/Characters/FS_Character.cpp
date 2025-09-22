@@ -126,11 +126,20 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(IA_Jump, ETriggerEvent::Canceled, this, &ACharacter::StopJumping);
 		}
 
+		// Primary Attack
 		if (IA_PrimaryAttack)
 		{
 			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Started, this, &AFS_Character::PrimaryAttack_Pressed);
 			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Completed, this, &AFS_Character::PrimaryAttack_Released);
 			EIC->BindAction(IA_PrimaryAttack, ETriggerEvent::Canceled, this, &AFS_Character::PrimaryAttack_Released);
+		}
+
+		// Block
+		if (IA_Block)
+		{
+			EIC->BindAction(IA_Block, ETriggerEvent::Started, this, &AFS_Character::Block_Pressed);
+			EIC->BindAction(IA_Block, ETriggerEvent::Completed, this, &AFS_Character::Block_Released);
+			EIC->BindAction(IA_Block, ETriggerEvent::Canceled, this, &AFS_Character::Block_Released);
 		}
 
 		// Ability 1
@@ -197,6 +206,16 @@ void AFS_Character::PrimaryAttack_Pressed()
 void AFS_Character::PrimaryAttack_Released()
 {
 	if (ASC) ASC->InputReleased(EFSAbilityInputID::PrimaryAttack);
+}
+
+void AFS_Character::Block_Pressed()
+{
+	if (ASC) ASC->InputPressed(EFSAbilityInputID::Block);
+}
+
+void AFS_Character::Block_Released()
+{
+	if (ASC) ASC->InputReleased(EFSAbilityInputID::Block);
 }
 
 void AFS_Character::Ability1_Pressed()
