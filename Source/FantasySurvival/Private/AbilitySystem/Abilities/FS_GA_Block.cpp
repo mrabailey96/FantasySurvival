@@ -10,9 +10,9 @@ static FGameplayTag TAG_State_Attacking = FGameplayTag::RequestGameplayTag(TEXT(
 UFS_GA_Block::UFS_GA_Block()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	bReplicateInputDirectly = true; // Ensures InputRelease replicates
-	ActivationOwnedTags.AddTag(TAG_State_Blocking);
-	ActivationBlockedTags.AddTag(TAG_State_Attacking); // Dont start block if already attacking
+	bReplicateInputDirectly = true; // Ensures release arrives on server too
+	ActivationOwnedTags.AddTag(TAG_State_Blocking); // Player owns "Blocking" while active
+	ActivationBlockedTags.AddTag(TAG_State_Attacking); // Cant start if currently attacking
 }
 
 void UFS_GA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -29,7 +29,9 @@ void UFS_GA_Block::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 		}
 	}
 
-	// TODO - Add a blocking animation montage for all classes
+	// it is recommended to drive a blocking pose via AnimBP using the State.Blocking tag.
+	// If we still want a quick "raise shield" montage, play it our own risk with our own task here
+	// and do NOT end the ability on completion
 }
 
 void UFS_GA_Block::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
@@ -39,6 +41,16 @@ void UFS_GA_Block::InputReleased(const FGameplayAbilitySpecHandle Handle, const 
 
 void UFS_GA_Block::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	// Clean up DR effect if we applied one
+	if (BlockingEffectHandle.IsValid())
+	{
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+		{
+			ASC->RemoveActiveGameplayEffect(BlockingEffectHandle);
+		}
+		BlockingEffectHandle = FActiveGameplayEffectHandle();
+	}
+
 	// Remove temporary effects if applied (DR buff)
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

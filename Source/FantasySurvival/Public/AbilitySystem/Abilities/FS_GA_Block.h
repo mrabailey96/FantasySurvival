@@ -35,4 +35,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Effects")
 	TSubclassOf<class UGameplayEffect> BlockingEffectClass; // Optional Damage Reduction buff while blocking
 
+private:
+	// Track the applied effect so we can remove it when the block ends
+	FActiveGameplayEffectHandle BlockingEffectHandle;
 };
