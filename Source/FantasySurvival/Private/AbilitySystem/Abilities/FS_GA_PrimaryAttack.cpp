@@ -97,7 +97,7 @@ void UFS_GA_PrimaryAttack::OnHitWindowEvent(FGameplayEventData Payload)
                     {
                         if (UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo())
                         {
-                            FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
+                            FGameplayEffectContextHandle Ctx = MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
                             Ctx.AddSourceObject(this);
                             Ctx.AddInstigator(Character, Character->GetController());
 
@@ -107,7 +107,7 @@ void UFS_GA_PrimaryAttack::OnHitWindowEvent(FGameplayEventData Payload)
 
                             if (Spec.IsValid())
                             {
-                                SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+                                TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
                             }
                         }
                     }

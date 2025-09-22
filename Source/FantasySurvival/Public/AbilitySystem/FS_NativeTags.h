@@ -15,8 +15,11 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Attacking);
 // Abilities
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Ability_PrimaryAttack);
 
-// Events
+// Events (Montage Notifies)
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_MeleeHitWindow);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_ArcaneBolt_Spawn);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Cleave_HitWindow);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_ShadowStep_Teleport);
 
 // Cooldowns
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Cooldown_PrimaryAttack);
