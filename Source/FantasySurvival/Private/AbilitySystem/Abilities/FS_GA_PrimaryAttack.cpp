@@ -13,12 +13,7 @@
 #include "Animation/AnimMontage.h"
 #include "GameplayEffect.h"
 #include "DrawDebugHelpers.h"
-
-static FGameplayTag TAG_Ability_PrimaryAttack = FGameplayTag::RequestGameplayTag(TEXT("Ability.PrimaryAttack"));
-static FGameplayTag TAG_Event_MeleeHitWindow = FGameplayTag::RequestGameplayTag(TEXT("Event.MeleeHitWindow"));
-static FGameplayTag TAG_Cooldown_PrimaryAttack = FGameplayTag::RequestGameplayTag(TEXT("Cooldown.PrimaryAttack"));
-static FGameplayTag TAG_State_Blocking = FGameplayTag::RequestGameplayTag(TEXT("State.Blocking"));
-static FGameplayTag TAG_State_Attacking = FGameplayTag::RequestGameplayTag(TEXT("State.Attacking"));
+#include "AbilitySystem/FS_NativeTags.h"
 
 UFS_GA_PrimaryAttack::UFS_GA_PrimaryAttack()
 {

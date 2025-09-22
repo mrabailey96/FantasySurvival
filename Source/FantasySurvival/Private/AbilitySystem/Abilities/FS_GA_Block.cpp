@@ -3,9 +3,7 @@
 
 #include "AbilitySystem/Abilities/FS_GA_Block.h"
 #include "AbilitySystemComponent.h"
-
-static FGameplayTag TAG_State_Blocking = FGameplayTag::RequestGameplayTag(TEXT("State.Blocking"));
-static FGameplayTag TAG_State_Attacking = FGameplayTag::RequestGameplayTag(TEXT("State.Attacking"));
+#include "AbilitySystem/FS_NativeTags.h"
 
 UFS_GA_Block::UFS_GA_Block()
 {
