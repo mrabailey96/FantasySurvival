@@ -8,7 +8,7 @@
 #include "FS_PlayerController.generated.h"
 
 class UEnhancedInputLocalPlayerSubsystem;
-class UUserWidget;
+class UFS_PlayerHUDWidget;
 
 /**
  * 
@@ -29,10 +29,10 @@ public:
 
 	// ---- Player HUD ----
 	UPROPERTY(EditDefaultsOnly, Category = "UI|PlayerHUD")
-	TSubclassOf<UUserWidget> PlayerHUDClass;
+	TSubclassOf<UFS_PlayerHUDWidget> PlayerHUDClass;
 
 	UPROPERTY(VisibleInstanceOnly, Category = "UI|PlayerHUD")
-	TObjectPtr<UUserWidget> PlayerHUD;
+	TObjectPtr<UFS_PlayerHUDWidget> PlayerHUD;
 
 protected:
 	virtual void BeginPlay() override;
