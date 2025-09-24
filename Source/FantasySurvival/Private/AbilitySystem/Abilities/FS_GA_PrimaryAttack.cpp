@@ -63,6 +63,22 @@ void UFS_GA_PrimaryAttack::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	}
 }
 
+UAnimMontage* UFS_GA_PrimaryAttack::ResolveMontage(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+    if (!ActorInfo) return nullptr;
+    const AFS_PlayerState* PS = Cast<AFS_PlayerState>(ActorInfo->OwnerActor.Get());
+    if (!PS) return nullptr;
+
+    switch (PS->SelectedClass)
+    {
+    case EFSPlayerClass::Warrior:  return WarriorMontage;
+    case EFSPlayerClass::Mage:     return MageMontage;
+    case EFSPlayerClass::Assassin: return AssassinMontage;
+    case EFSPlayerClass::Ranger:   return RangerMontage;
+    default: return WarriorMontage;
+    }
+}
+
 void UFS_GA_PrimaryAttack::OnHitWindowEvent(FGameplayEventData Payload)
 {
     if (bConsumedHitWindow) return;
@@ -123,18 +139,3 @@ void UFS_GA_PrimaryAttack::OnHitWindowEvent(FGameplayEventData Payload)
     }
 }
 
-UAnimMontage* UFS_GA_PrimaryAttack::ResolveMontage(const FGameplayAbilityActorInfo* ActorInfo) const
-{
-    if (!ActorInfo) return nullptr;
-    const AFS_PlayerState* PS = Cast<AFS_PlayerState>(ActorInfo->OwnerActor.Get());
-    if (!PS) return nullptr;
-    
-    switch (PS->SelectedClass)
-    {
-        case EFSPlayerClass::Warrior:  return WarriorMontage;
-        case EFSPlayerClass::Mage:     return MageMontage;
-        case EFSPlayerClass::Assassin: return AssassinMontage;
-        case EFSPlayerClass::Ranger:   return RangerMontage;
-        default: return WarriorMontage;
-    }
-}
