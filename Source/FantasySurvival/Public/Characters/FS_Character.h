@@ -6,6 +6,9 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "InputActionValue.h"
+#include "Components/MeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "FS_Character.generated.h"
 
 class AFS_PlayerState;
@@ -17,6 +20,8 @@ class UInputAction;
 
 class USpringArmComponent;
 class UCameraComponent;
+
+struct FFS_WeaponSpec;
 
 UCLASS()
 class FANTASYSURVIVAL_API AFS_Character : public ACharacter, public IAbilitySystemInterface
@@ -80,6 +85,16 @@ protected:
 	/** Cached ASC (owned by PlayerState) */
 	UPROPERTY()
 	TObjectPtr<UFS_AbilitySystemComponent> ASC;
+
+	void ApplyClassAppearance();
+	void ApplyClassWeapons();
+
+	// Reusable helper used by ApplyClassWeapons
+	UMeshComponent* CreateAndAttachWeapon(const FFS_WeaponSpec& Spec, FName DebugName);
+
+	// Keep references so we can cleanly destroy/replace
+	UPROPERTY(Transient) TObjectPtr<UMeshComponent> RightWeaponComp;
+	UPROPERTY(Transient) TObjectPtr<UMeshComponent> LeftWeaponComp;
 
 	/** Adds the IMC to the local player subsystem */
 	void AddInputContext(class APlayerController* PC);

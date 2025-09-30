@@ -4,6 +4,9 @@
 #include "Characters/FS_Character.h"
 #include "Player/FS_PlayerState.h"
 #include "AbilitySystem/FS_AbilitySystemComponent.h"
+#include "AbilitySystem/FS_ClassConfig.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -66,13 +69,14 @@ void AFS_Character::PossessedBy(AController* NewController)
 
 			if (HasAuthority())
 			{
-				// NEW: copy the class picked in the main menu
 				if (UFS_GameInstance* GI = GetWorld()->GetGameInstance<UFS_GameInstance>())
 				{
 					PS->SelectedClass = GI->GetPendingClass();
 				}
 
-				// Apply the correct per-class init now
+				ApplyClassAppearance();
+				ApplyClassWeapons();
+
 				PS->ApplyClassInitialization();
 			}
 		}
@@ -94,6 +98,9 @@ void AFS_Character::OnRep_PlayerState()
 			// DO NOT apply init effects here; server already did it in PossessedBy
 			// (Clients will see replicated attributes after the GE is applied server-side)
 		}
+
+		ApplyClassAppearance();
+		ApplyClassWeapons();
 	}
 }
 
@@ -159,6 +166,135 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("FS_Character expects UEnhancedInputComponent on the pawn."));
+	}
+}
+
+void AFS_Character::ApplyClassAppearance()
+{
+	AFS_PlayerState* PS = GetPlayerState<AFS_PlayerState>();
+	if (!PS || !PS->ClassConfig) return;
+
+	const EFSPlayerClass Class = PS->SelectedClass;
+
+	const FFS_ClassAppearance* Appearance = PS->ClassConfig->ClassAppearance.Find(Class);
+	if (!Appearance) return;
+
+	// Load mesh if it is a soft reference
+	USkeletalMesh* NewMesh = Appearance->Mesh.IsNull() ? nullptr : Appearance->Mesh.LoadSynchronous();
+	if (NewMesh)
+	{
+		GetMesh()->SetSkeletalMesh(NewMesh);
+	}
+
+	if (Appearance->AnimClass)
+	{
+		GetMesh()->SetAnimInstanceClass(Appearance->AnimClass);
+	}
+
+	// Materials
+	for (int32 i = 0; i < Appearance->Materials.Num(); ++i)
+	{
+		if (Appearance->Materials[i])
+		{
+			GetMesh()->SetMaterial(i, Appearance->Materials[i]);
+		}
+	}
+}
+
+UMeshComponent* AFS_Character::CreateAndAttachWeapon(const FFS_WeaponSpec& Spec, FName DebugName)
+{
+	if (!GetMesh()) return nullptr;
+
+	// Resolve which mesh type we’re using
+	USkeletalMesh* SK = Spec.SkeletalMesh.IsNull() ? nullptr : Spec.SkeletalMesh.LoadSynchronous();
+	UStaticMesh* SM = (SK == nullptr && !Spec.StaticMesh.IsNull()) ? Spec.StaticMesh.LoadSynchronous() : nullptr;
+	if (!SK && !SM) return nullptr;
+
+	// Create an appropriate component
+	UMeshComponent* NewComp = nullptr;
+
+	if (SK)
+	{
+		USkeletalMeshComponent* SKC = NewObject<USkeletalMeshComponent>(this, DebugName);
+		SKC->SetSkeletalMesh(SK);
+		if (Spec.SkeletalAnimClass)
+		{
+			SKC->SetAnimInstanceClass(Spec.SkeletalAnimClass);
+		}
+		NewComp = SKC;
+	}
+	else if (SM)
+	{
+		UStaticMeshComponent* SMC = NewObject<UStaticMeshComponent>(this, DebugName);
+		SMC->SetStaticMesh(SM);
+		NewComp = SMC;
+	}
+
+	if (!NewComp) return nullptr;
+
+	NewComp->SetMobility(EComponentMobility::Movable);
+	NewComp->SetIsReplicated(true); // basic replication; for heavy MP you may prefer an attached Actor
+
+	// Attach to the character mesh at the desired socket (fallback to class defaults if none)
+	const FName Socket = (Spec.AttachSocket.IsNone() ? FName(TEXT("weapon_r_socket")) : Spec.AttachSocket);
+	NewComp->SetupAttachment(GetMesh(), Socket);
+
+	// Register and apply transform/materials
+	NewComp->RegisterComponent();
+	NewComp->SetRelativeLocationAndRotation(Spec.RelativeLocation, Spec.RelativeRotation);
+	NewComp->SetRelativeScale3D(Spec.RelativeScale);
+
+	for (int32 i = 0; i < Spec.Materials.Num(); ++i)
+	{
+		if (Spec.Materials[i])
+		{
+			// Both Static/Skeletal derive from UMeshComponent → SetMaterial available
+			NewComp->SetMaterial(i, Spec.Materials[i]);
+		}
+	}
+
+	return NewComp;
+}
+
+void AFS_Character::ApplyClassWeapons()
+{
+	AFS_PlayerState* PS = GetPlayerState<AFS_PlayerState>();
+	if (!PS || !PS->ClassConfig) return;
+
+	// Destroy/clear any existing components first
+	auto DestroyIfValid = [](TObjectPtr<UMeshComponent>& Comp)
+		{
+			if (Comp)
+			{
+				Comp->DestroyComponent();
+				Comp = nullptr;
+			}
+		};
+
+	DestroyIfValid(RightWeaponComp);
+	DestroyIfValid(LeftWeaponComp);
+
+	const EFSPlayerClass Class = PS->SelectedClass;
+
+	const FFS_ClassWeapons* ClassWeaps = PS->ClassConfig->ClassWeapons.Find(Class);
+	if (!ClassWeaps) return;
+
+	// Right hand (default socket fallback is weapon_r_socket)
+	if (!ClassWeaps->RightHand.SkeletalMesh.IsNull() || !ClassWeaps->RightHand.StaticMesh.IsNull())
+	{
+		RightWeaponComp = CreateAndAttachWeapon(ClassWeaps->RightHand, TEXT("RightWeaponComp"));
+	}
+
+	// Left hand (default socket fallback is weapon_l_socket)
+	FFS_WeaponSpec LeftSpec = ClassWeaps->LeftHand;
+	if (LeftSpec.AttachSocket.IsNone())
+	{
+		LeftSpec.AttachSocket = FName(TEXT("weapon_l_socket"));
+	}
+
+	if (!LeftSpec.SkeletalMesh.IsNull() || !LeftSpec.StaticMesh.IsNull())
+	{
+		LeftWeaponComp = CreateAndAttachWeapon(LeftSpec, TEXT("LeftWeaponComp"));
 	}
 }
 

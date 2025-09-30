@@ -6,6 +6,9 @@
 #include "Engine/DataAsset.h"
 #include "Characters/FS_PlayerClass.h"
 #include "Abilities/GameplayAbility.h"
+#include "Animation/AnimInstance.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInstance.h"
 #include "FS_ClassConfig.generated.h"
 
 class UGameplayEffect;
@@ -40,6 +43,75 @@ struct FFS_ClassGrants
     TArray<FFS_AbilityGrant> Abilities;
 };
 
+USTRUCT(BlueprintType)
+struct FFS_ClassAppearance
+{
+    GENERATED_BODY()
+    /** The skeletal mesh to use for this class */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSoftObjectPtr<USkeletalMesh> Mesh;
+
+    /** Anim Instance class (Characters AnimBP's generated class) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSubclassOf<UAnimInstance> AnimClass = nullptr;
+
+    /** Optional material overides (index aligned) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TArray<TObjectPtr<UMaterialInterface>> Materials;
+
+
+};
+
+USTRUCT(BlueprintType)
+struct FFS_WeaponSpec
+{
+    GENERATED_BODY()
+
+    /** Create a SkeletalMeshComponent */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
+
+    /** If set (and SkeletalMesh is null), Create a StaticMeshComponent */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSoftObjectPtr<UStaticMesh> StaticMesh;
+
+    /** Optional Anim Instance for skeletal weapons (Staff/Wand/Tome with anims, etc.) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSubclassOf<UAnimInstance> SkeletalAnimClass = nullptr;
+
+    /** Socket to attach to (defaults can be the weapon_r_socket / weapon_l_socket) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FName AttachSocket = NAME_None;
+
+    /** Per-class per-socket transform overrides (applied relative to socket) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FVector RelativeLocation = FVector::ZeroVector;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FRotator RelativeRotation = FRotator::ZeroRotator;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FVector RelativeScale = FVector(1.f, 1.f, 1.f);
+
+    /** Optional material overrides; index-aligned */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TArray<TObjectPtr<UMaterialInterface>> Materials;
+};
+
+USTRUCT(BlueprintType)
+struct FFS_ClassWeapons
+{
+    GENERATED_BODY()
+
+    /** Right-hand weapon spec */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FFS_WeaponSpec RightHand;
+
+    /** Left-hand weapon spec */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FFS_WeaponSpec LeftHand;
+};
+
 /**
  * Data hub for per-class startup content.
  * - ClassInitEffects: one-shot Instant GE to set starting stats.
@@ -63,4 +135,10 @@ public:
     /** Abilities granted at spawn for the selected class */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Abilities")
     TMap<EFSPlayerClass, FFS_ClassGrants> ClassDefaultGrants;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Appearance")
+    TMap<EFSPlayerClass, FFS_ClassAppearance> ClassAppearance;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Weapons")
+    TMap<EFSPlayerClass, FFS_ClassWeapons> ClassWeapons;
 };
