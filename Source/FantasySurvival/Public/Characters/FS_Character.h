@@ -64,6 +64,12 @@ protected:
 	TObjectPtr<UInputAction> IA_Jump;      // Bool (Pressed/Released)
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Sprint;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Crouch;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_PrimaryAttack;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
@@ -98,6 +104,22 @@ protected:
 
 	/** Adds the IMC to the local player subsystem */
 	void AddInputContext(class APlayerController* PC);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float WalkSpeed = 300.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float SprintSpeed = 600.f;
+
+	// Movement tuning
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float CrouchSpeed = 200.f;
+
+	void StartSprint();
+	void StopSprint();
+
+	void BeginCrouch();
+	void EndCrouch();
 
 	void PrimaryAttack_Pressed();
 	void PrimaryAttack_Released();

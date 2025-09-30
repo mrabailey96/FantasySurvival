@@ -34,6 +34,7 @@ AFS_Character::AFS_Character()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
 	GetCharacterMovement()->bUseControllerDesiredRotation = false;
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 
 	// --- Camera rig ---
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -131,6 +132,20 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 			EIC->BindAction(IA_Jump, ETriggerEvent::Started, this, &ACharacter::Jump);
 			EIC->BindAction(IA_Jump, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 			EIC->BindAction(IA_Jump, ETriggerEvent::Canceled, this, &ACharacter::StopJumping);
+		}
+
+		if (IA_Sprint)
+		{
+			EIC->BindAction(IA_Sprint, ETriggerEvent::Started, this, &AFS_Character::StartSprint);
+			EIC->BindAction(IA_Sprint, ETriggerEvent::Completed, this, &AFS_Character::StopSprint);
+			EIC->BindAction(IA_Sprint, ETriggerEvent::Canceled, this, &AFS_Character::StopSprint);
+		}
+
+		if (IA_Crouch)
+		{
+			EIC->BindAction(IA_Crouch, ETriggerEvent::Started, this, &AFS_Character::BeginCrouch);
+			EIC->BindAction(IA_Crouch, ETriggerEvent::Completed, this, &AFS_Character::EndCrouch);
+			EIC->BindAction(IA_Crouch, ETriggerEvent::Canceled, this, &AFS_Character::EndCrouch);
 		}
 
 		// Primary Attack
@@ -332,6 +347,33 @@ void AFS_Character::Look(const FInputActionValue& Value)
 	const FVector2D Axis = Value.Get<FVector2D>(); // X=Yaw, Y=Pitch
 	AddControllerYawInput(Axis.X);
 	AddControllerPitchInput(Axis.Y);
+}
+
+void AFS_Character::StartSprint()
+{
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->MaxWalkSpeed = SprintSpeed;
+	}
+}
+
+void AFS_Character::StopSprint()
+{
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->MaxWalkSpeed = WalkSpeed;
+	}
+}
+
+void AFS_Character::BeginCrouch()
+{
+	StopSprint();
+	Crouch();
+}
+
+void AFS_Character::EndCrouch()
+{
+	UnCrouch();
 }
 
 void AFS_Character::PrimaryAttack_Pressed()
