@@ -7,6 +7,9 @@
 #include "AbilitySystem/FS_ClassConfig.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "AbilitySystem/Attributes/FS_AttributeSet_Stats.h"
+#include "TimerManager.h"
+#include "GameplayTagContainer.h"
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -143,9 +146,7 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 		if (IA_Crouch)
 		{
-			EIC->BindAction(IA_Crouch, ETriggerEvent::Started, this, &AFS_Character::BeginCrouch);
-			EIC->BindAction(IA_Crouch, ETriggerEvent::Completed, this, &AFS_Character::EndCrouch);
-			EIC->BindAction(IA_Crouch, ETriggerEvent::Canceled, this, &AFS_Character::EndCrouch);
+			EIC->BindAction(IA_Crouch, ETriggerEvent::Started, this, &AFS_Character::ToggleCrouch);
 		}
 
 		// Primary Attack
@@ -351,18 +352,102 @@ void AFS_Character::Look(const FInputActionValue& Value)
 
 void AFS_Character::StartSprint()
 {
+	// Don’t start sprinting if we’re already sprinting
+	if (bSprinting) return;
+
+	// Check stamina before starting
+	if (AFS_PlayerState* PS = GetPlayerState<AFS_PlayerState>())
+	{
+		if (UFS_AttributeSet_Stats* Stats = PS->GetStatsSet())
+		{
+			if (Stats->GetStamina() < SprintMinStaminaToStart)
+			{
+				return; // not enough stamina to begin sprint
+			}
+		}
+	}
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->MaxWalkSpeed = SprintSpeed;
 	}
+
+	bSprinting = true;
+	if (ASC && HasAuthority())
+	{
+		const FGameplayTag SprintingTag = FGameplayTag::RequestGameplayTag(TEXT("State.Movement.Sprinting"));
+		ASC->AddLooseGameplayTag(SprintingTag);
+	}
+
+	BeginSprintDrain();
+	
 }
 
 void AFS_Character::StopSprint()
 {
+	if (!bSprinting) return;
+
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
 		Move->MaxWalkSpeed = WalkSpeed;
 	}
+
+	bSprinting = false;
+	if (ASC && HasAuthority())
+	{
+		const FGameplayTag SprintingTag = FGameplayTag::RequestGameplayTag(TEXT("State.Movement.Sprinting"));
+		ASC->RemoveLooseGameplayTag(SprintingTag);
+	}
+	EndSprintDrain();
+}
+
+void AFS_Character::BeginSprintDrain()
+{
+	// Drain should be authoritative; do it on server and let replication update clients.
+	if (HasAuthority())
+	{
+		GetWorldTimerManager().SetTimer(
+			SprintDrainTimer, this, &AFS_Character::SprintDrain_Tick, SprintDrainInterval, true);
+	}
+}
+
+void AFS_Character::EndSprintDrain()
+{
+	if (HasAuthority())
+	{
+		GetWorldTimerManager().ClearTimer(SprintDrainTimer);
+	}
+}
+
+void AFS_Character::SprintDrain_Tick()
+{
+	// Safety: only drain if we’re sprinting
+	if (!bSprinting) return;
+
+	AFS_PlayerState* PS = GetPlayerState<AFS_PlayerState>();
+	if (!PS || !ASC) return;
+
+	UFS_AttributeSet_Stats* Stats = PS->GetStatsSet();
+	if (!Stats) return;
+
+	const float Current = Stats->GetStamina();
+	const float Drain = StaminaDrainPerSecond * SprintDrainInterval;
+	const float NewVal = FMath::Max(0.f, Current - Drain);
+
+	// Apply via ASC so it replicates
+	ASC->SetNumericAttributeBase(UFS_AttributeSet_Stats::GetStaminaAttribute(), NewVal);
+
+	// Auto-stop if we ran out
+	if (NewVal <= 0.f)
+	{
+		StopSprint();
+	}
+}
+
+void AFS_Character::ToggleCrouch()
+{
+	if (bIsCrouched) UnCrouch();
+	else Crouch();
 }
 
 void AFS_Character::BeginCrouch()

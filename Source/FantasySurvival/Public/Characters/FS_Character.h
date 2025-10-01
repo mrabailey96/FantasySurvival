@@ -111,6 +111,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float SprintSpeed = 600.f;
 
+	// Stamina drain while sprinting
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina|Sprint")
+	float StaminaDrainPerSecond = 20.0f;          // e.g., 20 per second
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina|Sprint")
+	float SprintDrainInterval = 0.10f;           // tick interval (seconds)
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina|Sprint")
+	float SprintMinStaminaToStart = 1.0f;         // block sprint if below this
+
+	// Internal state
+	FTimerHandle SprintDrainTimer;
+	bool bSprinting = false;
+
 	// Movement tuning
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float CrouchSpeed = 200.f;
@@ -118,6 +132,12 @@ protected:
 	void StartSprint();
 	void StopSprint();
 
+	// Helpers
+	void BeginSprintDrain();
+	void EndSprintDrain();
+	void SprintDrain_Tick();
+
+	void ToggleCrouch();
 	void BeginCrouch();
 	void EndCrouch();
 
