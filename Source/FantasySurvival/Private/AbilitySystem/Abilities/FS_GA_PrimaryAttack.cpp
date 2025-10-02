@@ -2,140 +2,148 @@
 
 
 #include "AbilitySystem/Abilities/FS_GA_PrimaryAttack.h"
-#include "Player/FS_PlayerState.h"
-#include "Characters/FS_PlayerClass.h"
-#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Animation/AnimInstance.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimMontage.h"
 #include "GameplayEffect.h"
-#include "DrawDebugHelpers.h"
-#include "AbilitySystem/FS_NativeTags.h"
+#include "GameplayTagContainer.h"
+#include "Kismet/KismetSystemLibrary.h"
+// #include "DrawDebugHelpers.h" // uncomment if you want debug shapes
 
 UFS_GA_PrimaryAttack::UFS_GA_PrimaryAttack()
 {
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    // Asset Tag Metadata
-    FGameplayTagContainer DefaultTags;
-    DefaultTags.AddTag(TAG_Ability_PrimaryAttack);
-    SetAssetTags(DefaultTags);
-
-    // Tags applied to the owner while this ability is active
-    ActivationOwnedTags.AddTag(TAG_Ability_PrimaryAttack);
-    ActivationOwnedTags.AddTag(TAG_State_Attacking); // Player owns "Attacking" while this runs
-
-    // Tags that prevent this ability from starting
-    ActivationBlockedTags.AddTag(TAG_State_Blocking); // Cant start if currently blocking
+	// Sensible default for the montage-event tag (override in defaults if you use another)
+	if (!MeleeHitEventTag.IsValid())
+	{
+		MeleeHitEventTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Melee.Hit")));
+	}
 }
 
-void UFS_GA_PrimaryAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+void UFS_GA_PrimaryAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
 {
-	if (!CommitOrEnd()) return;
-
-	// Explicitly apply cooldown GE (in addition to the Ability's internal cooldown system)
-	if (CooldownEffectClass)
+	// 1) Commit or end
+	if (!CommitOrEnd())
 	{
-		FGameplayEffectSpecHandle CD = MakeOutgoingGameplayEffectSpec(CooldownEffectClass, GetAbilityLevel());
-		if (CD.IsValid())
+		return;
+	}
+
+	AlreadyHit.Reset();
+
+	// 2) Wait for the gameplay event (from the montage notify)
+	if (MeleeHitEventTag.IsValid())
+	{
+		if (UAbilityTask_WaitGameplayEvent* WaitHit = WaitForEventTag(MeleeHitEventTag, /*OnlyOnce*/false, /*Exact*/false))
 		{
-			ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, CD);
+			WaitHit->EventReceived.AddDynamic(this, &UFS_GA_PrimaryAttack::OnHitEventReceived);
+			WaitHit->ReadyForActivation();
 		}
 	}
 
-	// Wait for the hit-window event (child-specific logic)
-	if (UAbilityTask_WaitGameplayEvent* WaitEvent = WaitForEventTag(TAG_Event_MeleeHitWindow, /*Once*/false, /*Exact*/false))
-	{
-		WaitEvent->EventReceived.AddDynamic(this ,&UFS_GA_PrimaryAttack::OnHitWindowEvent);
-		WaitEvent->ReadyForActivation();
-	}
+	// 3) Play the montage through the base helper (sets up delegates)
+	BeginAbilityMontage(AttackMontage);
+}
 
-	// Ask base to start the montage with default bindings (it will EndAbility on finish)
-	UAnimMontage* AttackMontage = ResolveMontage(ActorInfo);
-	if (!BeginAbilityMontage(AttackMontage, /*Rate*/1.0f, /*Section*/NAME_None, /*bStopWhenAbilityEnds*/false))
+void UFS_GA_PrimaryAttack::OnHitEventReceived(FGameplayEventData Payload)
+{
+	const FGameplayAbilityActorInfo* Info = GetCurrentActorInfo();
+	if (!Info || !Info->AvatarActor.IsValid()) return;
+
+	// Damage application must be server-authoritative
+	if (!Info->AvatarActor->HasAuthority())
 	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility*/true, /*bWasCancelled*/true);
 		return;
 	}
+
+	DoHitSweepAndApply(Info);
 }
 
-UAnimMontage* UFS_GA_PrimaryAttack::ResolveMontage(const FGameplayAbilityActorInfo* ActorInfo) const
+void UFS_GA_PrimaryAttack::OnMontageCompleted()
 {
-    if (!ActorInfo) return nullptr;
-    const AFS_PlayerState* PS = Cast<AFS_PlayerState>(ActorInfo->OwnerActor.Get());
-    if (!PS) return nullptr;
-
-    switch (PS->SelectedClass)
-    {
-    case EFSPlayerClass::Warrior:  return WarriorMontage;
-    case EFSPlayerClass::Mage:     return MageMontage;
-    case EFSPlayerClass::Assassin: return AssassinMontage;
-    case EFSPlayerClass::Ranger:   return RangerMontage;
-    default: return WarriorMontage;
-    }
+	// When montage finishes normally, end the ability. (Interrupt/Cancel paths are handled in base.)
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
 }
 
-void UFS_GA_PrimaryAttack::OnHitWindowEvent(FGameplayEventData Payload)
+void UFS_GA_PrimaryAttack::DoHitSweepAndApply(const FGameplayAbilityActorInfo* ActorInfo)
 {
-    if (bConsumedHitWindow) return;
-    bConsumedHitWindow = true;
+	if (!ActorInfo || !ActorInfo->AvatarActor.IsValid() || !DamageGameplayEffect) return;
 
-    const FGameplayAbilityActorInfo* Info = GetCurrentActorInfo();
-    ACharacter* Character = Info ? Cast<ACharacter>(Info->AvatarActor.Get()) : nullptr;
-    if (!Character || !DamageEffectClass) return;
+	AActor* Avatar = ActorInfo->AvatarActor.Get();
+	ACharacter* Char = Cast<ACharacter>(Avatar);
+	USkeletalMeshComponent* Mesh = Char ? Char->GetMesh() : nullptr;
 
-    USkeletalMeshComponent* Mesh = Character->GetMesh();
-    if (!Mesh) return;
+	auto DoOneSweep = [&](const FName& SocketName)
+		{
+			FVector Start = Avatar->GetActorLocation();
+			FRotator Facing = Avatar->GetActorRotation();
 
-    const FName Socket = TraceSocketName.IsNone() ? FName(TEXT("hand_rSocket")) : TraceSocketName;
-    const FVector Start = Mesh->GetSocketLocation(Socket);
-    const FVector Dir = Character->GetActorForwardVector();
-    const FVector End = Start + Dir * TraceRange;
+			if (Mesh && Mesh->DoesSocketExist(SocketName))
+			{
+				Start = Mesh->GetSocketLocation(SocketName);
+				Facing = Mesh->GetSocketRotation(SocketName);
+			}
 
-    FHitResult Hit;
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(PrimaryAttackSweep), false, Character);
-    FCollisionResponseParams Resp;
+			const FVector End = Start + (Facing.Vector() * HitRange);
 
-    if (UWorld* World = Character->GetWorld())
-    {
-        if (World->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Pawn,
-            FCollisionShape::MakeSphere(TraceRadius), Params, Resp))
-        {
-            if (AActor* HitActor = Hit.GetActor())
-            {
-                if (HitActor != Character)
-                {
-                    if (UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor))
-                    {
-                        if (UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo())
-                        {
-                            FGameplayEffectContextHandle Ctx = MakeEffectContext(CurrentSpecHandle, CurrentActorInfo);
-                            Ctx.AddSourceObject(this);
-                            Ctx.AddInstigator(Character, Character->GetController());
+			TArray<FHitResult> Hits;
+			FCollisionQueryParams Params(SCENE_QUERY_STAT(WarriorPrimaryAttack), /*bTraceComplex=*/false, Avatar);
+			Params.bReturnPhysicalMaterial = false;
 
-                            FGameplayEffectSpecHandle Spec = SourceASC->MakeOutgoingSpec(DamageEffectClass, GetAbilityLevel(), Ctx);
+			const bool bAny = Avatar->GetWorld()->SweepMultiByChannel(
+				Hits, Start, End, FQuat::Identity, TraceChannel, FCollisionShape::MakeSphere(HitRadius), Params);
 
-                            // TODO (later): insert per-weapon damage via SetByCaller here
+			 // Debug
+			 DrawDebugSphere(Avatar->GetWorld(), Start, HitRadius, 16, FColor::White, false, 1.f);
+			 DrawDebugSphere(Avatar->GetWorld(), End,   HitRadius, 16, FColor::White, false, 1.f);
+			 DrawDebugLine(Avatar->GetWorld(), Start, End, FColor::Green, false, 1.f, 0, 1.f);
 
-                            if (Spec.IsValid())
-                            {
-                                TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-                            }
-                        }
-                    }
-                }
-            }
-        }
+			if (!bAny) return;
 
-#if !(UE_BUILD_SHIPPING)
-        DrawDebugLine(World, Start, End, FColor::Silver, false, 1.5f, 0, 0.75f);
-        DrawDebugSphere(World, Hit.bBlockingHit ? Hit.ImpactPoint : End, TraceRadius, 12,
-            Hit.bBlockingHit ? FColor::Red : FColor::Green, false, 1.5f, 0, 1.5f);
-#endif
-    }
+			// Prepare source spec context once
+			UAbilitySystemComponent* SourceASC = ActorInfo->AbilitySystemComponent.Get();
+			if (!SourceASC) return;
+
+			FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
+			Ctx.AddSourceObject(Avatar);
+
+			for (const FHitResult& H : Hits)
+			{
+				AActor* Target = H.GetActor();
+				if (!Target || Target == Avatar) continue;
+
+				// One hit per unique target per attack window
+				if (AlreadyHit.Contains(Target)) continue;
+
+				// Target must have an ASC
+				UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
+				if (!TargetASC) continue;
+
+				FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageGameplayEffect, GetAbilityLevel(), Ctx);
+				if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid()) continue;
+
+				// SetByCaller "Data.Damage" — pass negative so Additive to Health subtracts
+				const FGameplayTag DamageTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Data.Damage")));
+				SpecHandle.Data->SetSetByCallerMagnitude(DamageTag, -FMath::Abs(DamageAmount));
+
+				SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+				AlreadyHit.Add(Target);
+			}
+		};
+
+	// Right hand
+	DoOneSweep(RightHandSocket);
+
+	// Optional offhand
+	if (bSweepLeftHandToo)
+	{
+		DoOneSweep(LeftHandSocket);
+	}
 }
-
