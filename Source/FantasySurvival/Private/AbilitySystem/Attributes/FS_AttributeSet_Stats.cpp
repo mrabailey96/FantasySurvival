@@ -8,7 +8,7 @@
 
 UFS_AttributeSet_Stats::UFS_AttributeSet_Stats()
 {
-	// Sensible defaults; you can override via GE_Init_Stats:
+	// Sensible defaults; We can override via GE_Init_Stats:
 	InitMaxHealth(100.f);   InitHealth(GetMaxHealth());
 	InitMaxMana(100.f);     InitMana(GetMaxMana());
 	InitMaxStamina(100.f);  InitStamina(GetMaxStamina());

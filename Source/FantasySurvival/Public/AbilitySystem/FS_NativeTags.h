@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "NativeGameplayTags.h"
 
-// Central registry for all native gameplay tags used by the Ability System.
-// Include this header anywhere you need to reference these tags.
+// Central registry for all native gameplay tags used by the GAS
 
 // States
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Blocking);

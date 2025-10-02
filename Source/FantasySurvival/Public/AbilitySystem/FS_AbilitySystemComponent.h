@@ -8,7 +8,7 @@
 #include "FS_AbilitySystemComponent.generated.h"
 
 /**
- * 
+ * Lightweight wrapper to route Enhanced Input events into GAS
  */
 UCLASS()
 class FANTASYSURVIVAL_API UFS_AbilitySystemComponent : public UAbilitySystemComponent

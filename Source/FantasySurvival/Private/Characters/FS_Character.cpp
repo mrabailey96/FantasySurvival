@@ -4,7 +4,7 @@
 #include "Characters/FS_Character.h"
 #include "Player/FS_PlayerState.h"
 #include "AbilitySystem/FS_AbilitySystemComponent.h"
-#include "AbilitySystem/FS_ClassConfig.h"
+#include "AbilitySystem/Config/FS_ClassConfig.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "AbilitySystem/Attributes/FS_AttributeSet_Stats.h"

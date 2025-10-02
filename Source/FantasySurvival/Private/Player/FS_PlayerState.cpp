@@ -4,7 +4,7 @@
 #include "Player/FS_PlayerState.h"
 #include "AbilitySystem/FS_AbilitySystemComponent.h"
 #include "AbilitySystem/Attributes/FS_AttributeSet_Stats.h"
-#include "AbilitySystem/FS_ClassConfig.h"
+#include "AbilitySystem/Config/FS_ClassConfig.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "Abilities/GameplayAbility.h"

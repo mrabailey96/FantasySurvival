@@ -13,6 +13,9 @@
 	GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
 	GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
+/**
+ * Health/Mana/Stamina attributes with replication & max clamping
+ */
 UCLASS()
 class FANTASYSURVIVAL_API UFS_AttributeSet_Stats : public UAttributeSet
 {

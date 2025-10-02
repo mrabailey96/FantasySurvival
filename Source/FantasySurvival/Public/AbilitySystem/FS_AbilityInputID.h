@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "FS_AbilityInputID.generated.h"
 
+/**
+ * Enum used to bind Enhanced Input -> GAS input slots
+ */
 UENUM(BlueprintType)
 enum class EFSAbilityInputID : uint8
 {

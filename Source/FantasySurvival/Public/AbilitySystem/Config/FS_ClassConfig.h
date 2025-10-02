@@ -13,7 +13,7 @@
 
 class UGameplayEffect;
 
-/** One ability grant entry (lets you set Level/InputID per ability if you like) */
+/** One ability grant entry (lets us set Level/InputID per ability if we like) */
 USTRUCT(BlueprintType)
 struct FFS_AbilityGrant
 {
@@ -23,11 +23,11 @@ struct FFS_AbilityGrant
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TSubclassOf<UGameplayAbility> Ability = nullptr;
 
-    /** Optional: starting level (default 1) */
+    /** starting level (default 1) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     int32 Level = 1;
 
-    /** Optional: input binding (use your EFSAbilityInputID values; default = Ability1) */
+    /** input binding (use our EFSAbilityInputID values; default = Ability1) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     int32 InputID = 0; // set to (int32)EFSAbilityInputID::Ability1 in the DA if desired
 };
@@ -55,7 +55,7 @@ struct FFS_ClassAppearance
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TSubclassOf<UAnimInstance> AnimClass = nullptr;
 
-    /** Optional material overides (index aligned) */
+    /** material overides (index aligned) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TArray<TObjectPtr<UMaterialInterface>> Materials;
 
@@ -75,11 +75,11 @@ struct FFS_WeaponSpec
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TSoftObjectPtr<UStaticMesh> StaticMesh;
 
-    /** Optional Anim Instance for skeletal weapons (Staff/Wand/Tome with anims, etc.) */
+    /** Anim Instance for skeletal weapons (Staff/Wand/Tome with anims, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TSubclassOf<UAnimInstance> SkeletalAnimClass = nullptr;
 
-    /** Socket to attach to (defaults can be the weapon_r_socket / weapon_l_socket) */
+    /** Socket to attach to (defaults can be the [ClassName]_weapon_r_socket / [ClassName]_weapon_l_socket) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     FName AttachSocket = NAME_None;
 
@@ -93,7 +93,7 @@ struct FFS_WeaponSpec
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     FVector RelativeScale = FVector(1.f, 1.f, 1.f);
 
-    /** Optional material overrides; index-aligned */
+    /** material overrides; index-aligned */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     TArray<TObjectPtr<UMaterialInterface>> Materials;
 };
@@ -117,6 +117,7 @@ struct FFS_ClassWeapons
  * - ClassInitEffects: one-shot Instant GE to set starting stats.
  * - ClassPassiveEffects: optional Infinite GE(s) for auras/regen/etc.
  * - ClassDefaultAbilities: abilities to grant on spawn for that class.
+ * - ClassAppearance/ClassWeapons: Visuals & Attachments
  */
 UCLASS(BlueprintType)
 class FANTASYSURVIVAL_API UFS_ClassConfig : public UPrimaryDataAsset
@@ -128,7 +129,7 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Effects")
     TMap<EFSPlayerClass, TSubclassOf<UGameplayEffect>> ClassInitEffects;
 
-    /** Optional passive infinite effect */
+    /** Passive infinite effect */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Effects")
     TMap<EFSPlayerClass, TSubclassOf<UGameplayEffect>> ClassPassiveEffects;
 
@@ -136,9 +137,11 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Abilities")
     TMap<EFSPlayerClass, FFS_ClassGrants> ClassDefaultGrants;
 
+    /** Mesh/Anim/Materials per class */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Appearance")
     TMap<EFSPlayerClass, FFS_ClassAppearance> ClassAppearance;
 
+    /** Weapon attachment specs per class */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ClassConfig|Weapons")
     TMap<EFSPlayerClass, FFS_ClassWeapons> ClassWeapons;
 };
