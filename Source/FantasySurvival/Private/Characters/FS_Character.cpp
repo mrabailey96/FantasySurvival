@@ -123,11 +123,11 @@ void AFS_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	{
 		// Movement
 		if (IA_Move)
-			EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AFS_Character::Move);
+			EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AFS_Character::MoveAround);
 
 		// Look
 		if (IA_Look)
-			EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AFS_Character::Look);
+			EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AFS_Character::LookAround);
 
 		// Jump
 		if (IA_Jump)
@@ -328,7 +328,7 @@ void AFS_Character::AddInputContext(APlayerController* PC)
 	}
 }
 
-void AFS_Character::Move(const FInputActionValue& Value)
+void AFS_Character::MoveAround(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>(); // X=Right, Y=Forward
 	if (!Controller || Axis.IsNearlyZero()) return;
@@ -343,7 +343,7 @@ void AFS_Character::Move(const FInputActionValue& Value)
 	AddMovementInput(Right, Axis.X);
 }
 
-void AFS_Character::Look(const FInputActionValue& Value)
+void AFS_Character::LookAround(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>(); // X=Yaw, Y=Pitch
 	AddControllerYawInput(Axis.X);

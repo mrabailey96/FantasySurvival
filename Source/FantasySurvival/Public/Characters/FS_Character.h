@@ -152,8 +152,8 @@ protected:
 	void Ability1_Released();
 
 	/** Movement/look handlers */
-	void Move(const FInputActionValue& Value);
-	void Look(const FInputActionValue& Value);
+	void MoveAround(const FInputActionValue& Value);
+	void LookAround(const FInputActionValue& Value);
 
 	// Toggle pause
 	void TogglePauseMenu();
