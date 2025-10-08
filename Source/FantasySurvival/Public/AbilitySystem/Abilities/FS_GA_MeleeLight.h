@@ -9,6 +9,7 @@
 
 class UGameplayEffect;
 class UAnimMontage;
+class UAbilityTask_PlayMontageAndWait;
 
 /**
  * Sword Light Attack:
@@ -100,6 +101,9 @@ private:
 	// Keep track of already-hit actors for this swing so we dont double apply
 	TSet<TWeakObjectPtr<AActor>> HitActorsThisActivation;
 
+	UPROPERTY()
+	UAbilityTask_PlayMontageAndWait* PlayTaskRef = nullptr;
+
 	// Called when the hit window gameplay event fires
 	UFUNCTION()
 	void OnMeleeHitEvent(FGameplayEventData Payload);
@@ -110,4 +114,10 @@ private:
 	// Ends the ability when the montage finishes
 	UFUNCTION()
 	void OnMontageFinished();
+
+	UFUNCTION()
+	void OnMontageCancelled() { EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false); }
+
+	UFUNCTION()
+	void OnMontageCompleted() { EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false); }
 };

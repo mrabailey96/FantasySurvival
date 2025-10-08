@@ -173,7 +173,7 @@ void UFS_GA_MeleeLight::DoMeleeHit(const FGameplayAbilityActorInfo* ActorInfo)
 					CueParams.Location = HR.ImpactPoint;
 					CueParams.Normal = HR.ImpactNormal;
 					CueParams.PhysicalMaterial = HR.PhysMaterial.Get();
-					CueParams.EffectContext = SpecHandle.Data->GetContext(); // reuse if we still have it in scope
+					CueParams.EffectContext = Context; //SpecHandle.Data->GetContext(); // reuse if we still have it in scope
 
 					// Fire on the targets ASC so it replicates properly
 					TargetASC->ExecuteGameplayCue(HitReactCueTag, CueParams);
