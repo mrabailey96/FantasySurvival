@@ -97,6 +97,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Melee|HitReact")
 	FGameplayTag HitReactCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.HitReact.Melee"));
 
+	// ------- Damage Number Cue -------
+	UPROPERTY(EditDefaultsOnly, Category = "Melee|UI")
+	FGameplayTag DamageNumberCueTag = FGameplayTag::RequestGameplayTag(FName("GameplayCue.UI.DamageNumber"));
+
 private:
 	// Keep track of already-hit actors for this swing so we dont double apply
 	TSet<TWeakObjectPtr<AActor>> HitActorsThisActivation;

@@ -148,6 +148,20 @@ void UFS_GA_MeleeLight::DoMeleeHit(const FGameplayAbilityActorInfo* ActorInfo)
 				UE_LOG(LogTemp, Warning, TEXT("[MeleeLight] Applied %0.1f to %s | HandleValid=%d"), OutgoingDamage, *GetNameSafe(HitActor), Handle.IsValid());
 
 				HitActorsThisActivation.Add(HitActor);
+
+				// OutgoingDamage is negative in our code; We want a positive number for the UI
+				const float ShownAmount = FMath::Abs(OutgoingDamage);
+
+				// Execute the damage number cue on the target so it replicates appropriately
+				if (DamageNumberCueTag.IsValid())
+				{
+					FGameplayCueParameters NumParams;
+					NumParams.Location = HR.ImpactPoint; // Falls back to actor location in the cue if needed
+					NumParams.RawMagnitude = ShownAmount; // The number the cue will display
+					NumParams.EffectContext = Context; // optional
+
+					TargetASC->ExecuteGameplayCue(DamageNumberCueTag, NumParams);
+				}
 			}
 
 			// Gate by cooldown tag on the target
