@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "FS|Enemy")
 	void BP_OnDeath();
 
+	// How close we try to get before we consider attacking (units)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FS|Combat", meta = (ClampMin = "50.0", ClampMax = "2000.0"))
+	float AttackRange = 200.0f; // fists 200, sword 250, staff 275, daggers 225, bow 800+ (ranged)
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -65,7 +65,7 @@ protected:
 
 	// Base damage to send as SetByCaller to the damage GE
 	UPROPERTY(EditDefaultsOnly, Category = "Melee|Damage")
-	float DamageBase = -25.0f;
+	float DamageBase = 25.0f;
 
 	// ------- Ability Cost -------
 	// GE used to subtract stamina (Instant, SetByCaller Data.StaminaCost)

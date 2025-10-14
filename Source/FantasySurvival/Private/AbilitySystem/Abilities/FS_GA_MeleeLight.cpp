@@ -80,7 +80,7 @@ void UFS_GA_MeleeLight::OnMeleeHitEvent(FGameplayEventData Payload)
 
 void UFS_GA_MeleeLight::DoMeleeHit(const FGameplayAbilityActorInfo* ActorInfo)
 {
-	ACharacter* AvatarChar = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
+	ACharacter* AvatarChar = Cast<ACharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
 	if (!AvatarChar || !DamageEffectClass) return;
 
 	// Build a simple forward sphere trace from the characters center
@@ -124,46 +124,68 @@ void UFS_GA_MeleeLight::DoMeleeHit(const FGameplayAbilityActorInfo* ActorInfo)
 	UAbilitySystemComponent* SourceASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!SourceASC) return;
 
-	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
-	Context.AddSourceObject(this); // optional
+	//FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
 
+	// Damage Set by caller tag
 	const FGameplayTag DamageDataTag = FGameplayTag::RequestGameplayTag(FName("Data.Damage"));
+
+	AActor* SourceInstigator = GetOwningActorFromActorInfo(); // Controller/Owner
+	AActor* SourceAvatar = GetAvatarActorFromActorInfo(); // Pawn
+
+	//Context.AddSourceObject(this); // optional
 
 	for (const FHitResult& HR : Hits)
 	{
 		AActor* HitActor = HR.GetActor();
-		if (!HitActor || HitActorsThisActivation.Contains(HitActor)) continue;
+		/*if (!HitActor || HitActorsThisActivation.Contains(HitActor)) continue;*/
+		if (!IsValid(HitActor) || HitActor == SourceAvatar) continue;
+		if (HitActorsThisActivation.Contains(HitActor)) continue;
 
 		if (UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor))
 		{
+			// Make an Effect Context for this target
+			FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
+			Context.AddSourceObject(this);
+			Context.AddInstigator(SourceInstigator, SourceAvatar);
+
+			// This is where the assert used to trigger when context was reused
+			// Fresh context -> safe to add a hit result
+			Context.AddHitResult(HR);
+
+			// Build the spec with per-target context
 			FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(DamageEffectClass, 1.0f, Context);
 			if (SpecHandle.IsValid())
 			{
 				const float OutgoingDamage = -FMath::Abs(DamageBase); // ensure negative for damage
 				SpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, OutgoingDamage);
-				SpecHandle.Data->GetContext().AddHitResult(HR, false);
+				// SpecHandle.Data->GetContext().AddHitResult(HR, false);
 
-				auto Handle = SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+				// Apply to the target
+				const FActiveGameplayEffectHandle AppliedHandle = SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 
-				UE_LOG(LogTemp, Warning, TEXT("[MeleeLight] Applied %0.1f to %s | HandleValid=%d"), OutgoingDamage, *GetNameSafe(HitActor), Handle.IsValid());
+				// auto Handle = SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+
+				UE_LOG(LogTemp, Verbose, TEXT("[MeleeLight] Applied %.1f to %s | HandleValid=%d"), OutgoingDamage, *GetNameSafe(HitActor), AppliedHandle.IsValid());
 
 				HitActorsThisActivation.Add(HitActor);
 
-				// OutgoingDamage is negative in our code; We want a positive number for the UI
-				const float ShownAmount = FMath::Abs(OutgoingDamage);
-
+				// --- Damage number UI (Positive for display) ---
 				// Execute the damage number cue on the target so it replicates appropriately
 				if (DamageNumberCueTag.IsValid())
 				{
 					FGameplayCueParameters NumParams;
 					NumParams.Location = HR.ImpactPoint; // Falls back to actor location in the cue if needed
-					NumParams.RawMagnitude = ShownAmount; // The number the cue will display
+					NumParams.RawMagnitude = FMath::Abs(OutgoingDamage); // The number the cue will display
 					NumParams.EffectContext = Context; // optional
 
 					TargetASC->ExecuteGameplayCue(DamageNumberCueTag, NumParams);
 				}
+
+				// OutgoingDamage is negative in our code; We want a positive number for the UI
+				//const float ShownAmount = FMath::Abs(OutgoingDamage);
 			}
 
+			// --- Hit react (cooldown-gated) ---
 			// Gate by cooldown tag on the target
 			const FGameplayTag HitReactCooldownTag = FGameplayTag::RequestGameplayTag(FName("Cooldown.HitReact"));
 
