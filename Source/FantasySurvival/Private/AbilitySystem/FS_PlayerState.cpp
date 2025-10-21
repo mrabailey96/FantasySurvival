@@ -13,6 +13,7 @@ AFS_PlayerState::AFS_PlayerState()
 	// Mixed mode gives good results for predicting the owner while replicating to others
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	AbilitySystemComponent->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Team.Player")));
 
 	// Create our AttributeSet; It's a UObject that the ASC tracks
 	StatsSet = CreateDefaultSubobject<UFS_AttributeSet_Stats>(TEXT("StateSet"));

@@ -66,6 +66,9 @@ void AFS_EnemyCharacter::BeginPlay()
 	// Required so ASC knows its owner/avatar
 	AbilitySystem->InitAbilityActorInfo(this, this);
 
+	// Team Tag
+	AbilitySystem->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Team.Enemy")));
+
 	// Apply initial attributes on the server
 	if (HasAuthority() && InitializeAttributesEffect)
 	{

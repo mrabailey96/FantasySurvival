@@ -107,15 +107,20 @@ bool UFS_EnemyCombatComponent::PerformMelee(AActor* Target)
 		AActor* HitActor = HR.GetActor();
 		if (!IsValid(HitActor) || HitActor == SourceAvatar) continue;
 
-		// Per-window dedupe
+		// Per-Swing dedupe
 		if (AlreadyHitThisWindow.Contains(HitActor)) continue;
 		AlreadyHitThisWindow.Add(HitActor);
 
-		// Optional: only attack intended target OR allow cleave
-		// if (HitActor != Target) continue;
-
 		UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HitActor);
 		if (!TargetASC) continue;
+
+		// Friendly fire guard: only damage players, not enemies
+		static const FGameplayTag TAG_Team_Player = FGameplayTag::RequestGameplayTag(TEXT("Team.Player"));
+		if (!TargetASC->HasMatchingGameplayTag(TAG_Team_Player))
+		{
+			// Not a player (e.g. another enemy) -> skip
+			continue;
+		}
 
 		// Fresh context per target (prevents AddHitResult assertion)
 		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
