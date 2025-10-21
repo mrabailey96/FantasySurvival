@@ -20,7 +20,8 @@ public class FantasySurvival : ModuleRules
             "GameplayTags",
             "UMG",
             "Slate",
-            "SlateCore"
+            "SlateCore",
+            "AnimGraphRuntime"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });

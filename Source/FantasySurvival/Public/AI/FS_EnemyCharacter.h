@@ -12,6 +12,7 @@
 class UAbilitySystemComponent;
 class UFS_AttributeSet_Stats;
 class UGameplayEffect;
+class UFS_EnemyCombatComponent;
 
 /**
  * Very simple enemy that:
@@ -35,6 +36,9 @@ public:
 	// BP hook for SFX/VFX on death
 	UFUNCTION(BlueprintImplementableEvent, Category = "FS|Enemy")
 	void BP_OnDeath();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FS|Combat")
+	TObjectPtr<UFS_EnemyCombatComponent> CombatComp;
 
 	// How close we try to get before we consider attacking (units)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FS|Combat", meta = (ClampMin = "50.0", ClampMax = "2000.0"))

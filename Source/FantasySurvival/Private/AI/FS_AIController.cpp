@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
 #include "AI/FS_EnemyCharacter.h"
+#include "Combat/FS_EnemyCombatComponent.h"
 
 AFS_AIController::AFS_AIController()
 {
@@ -53,11 +54,25 @@ void AFS_AIController::AcquireTarget()
 	if (!BB) { BB = GetBlackboardComponent(); }
 	if (!BB) return;
 
-	if (AActor* Best = FindBestPlayer())
+	if (APawn* P = GetPawn())
 	{
-		BB->SetValueAsObject(Key_TargetActor, Best);
-		SetFocus(Best); // Optional: Smoother facing
+		if (AActor* Best = FindBestPlayer())
+		{
+			BB->SetValueAsObject(Key_TargetActor, Best);
+			SetFocus(Best); // Optional: Smoother facing
+
+			// Try to attack if close and off cooldown
+			if (AFS_EnemyCharacter* Enemy = Cast<AFS_EnemyCharacter>(P))
+			{
+				if (Enemy->CombatComp)
+				{
+					Enemy->CombatComp->TryAttack(Best);
+				}
+			}
+		}
 	}
+
+	
 	// Never clear target; always chase even if far away
 }
 

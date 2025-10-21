@@ -13,6 +13,7 @@
 #include "Blueprint/UserWidget.h"
 #include "UI/FS_EnemyHealthBarWidget.h"
 #include "UObject/UnrealType.h"
+#include "Combat/FS_EnemyCombatComponent.h"
 
 // Sets default values
 AFS_EnemyCharacter::AFS_EnemyCharacter()
@@ -37,6 +38,10 @@ AFS_EnemyCharacter::AFS_EnemyCharacter()
 	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	StatsSet = CreateDefaultSubobject<UFS_AttributeSet_Stats>(TEXT("Stats_Enemy"));
+
+	CombatComp = CreateDefaultSubobject<UFS_EnemyCombatComponent>(TEXT("CombatComponent"));
+	// Seed component's range from our per-enemy property
+	if (CombatComp) CombatComp->SetAttackRange(AttackRange);
 
 	// Health bar widget (We'll set the widget class in the BP)
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthBar"));
