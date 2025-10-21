@@ -57,7 +57,19 @@ bool UFS_EnemyCombatComponent::TryAttack(AActor* Target)
 			{
 				if (EnemyAnim->MeleeMontage)
 				{
+					AlreadyHitThisWindow.Reset();
 					Anim->Montage_Play(EnemyAnim->MeleeMontage, 1.0f);
+
+					// Also bind end/blend-out to be extra safe
+					FOnMontageBlendingOutStarted BlendOut;
+					BlendOut.BindUObject(this, &UFS_EnemyCombatComponent::OnAttackMontageBlendOut);
+					Anim->Montage_SetBlendingOutDelegate(BlendOut, EnemyAnim->MeleeMontage);
+
+					FOnMontageEnded Ended;
+					Ended.BindUObject(this, &UFS_EnemyCombatComponent::OnAttackMontageEnded);
+					Anim->Montage_SetEndDelegate(Ended, EnemyAnim->MeleeMontage);
+
+					//Anim->Montage_Play(EnemyAnim->MeleeMontage, 1.0f);
 				}
 			}
 		}
@@ -145,6 +157,16 @@ bool UFS_EnemyCombatComponent::PerformMelee(AActor* Target)
 bool UFS_EnemyCombatComponent::IsWithinRangeSq(const FVector& From, const FVector& To, float Range)
 {
 	return FVector::DistSquared(From, To) <= FMath::Square(Range);
+}
+
+void UFS_EnemyCombatComponent::OnAttackMontageBlendOut(UAnimMontage* Montage, bool bInterrupted)
+{
+	AlreadyHitThisWindow.Reset();
+}
+
+void UFS_EnemyCombatComponent::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	AlreadyHitThisWindow.Reset();
 }
 
 void UFS_EnemyCombatComponent::BeginMeleeWindow()

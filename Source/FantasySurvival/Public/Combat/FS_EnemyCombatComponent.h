@@ -107,5 +107,8 @@ protected:
 	bool PerformMelee(AActor* Target);
 
 	// Utility: quick squared distance check
-	static bool IsWithinRangeSq(const FVector& From, const FVector& To, float Range);		
+	static bool IsWithinRangeSq(const FVector& From, const FVector& To, float Range);
+
+	void OnAttackMontageBlendOut(UAnimMontage* Montage, bool bInterrupted);
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 };
